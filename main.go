@@ -7,6 +7,7 @@ import (
 	"os"
 	"regexp"
 	"strings"
+	"time"
 
 	"github.com/fatih/color"
 )
@@ -52,9 +53,18 @@ func applyAndHighlights(text string, highlights []string, baseColor func(a ...in
 	return baseColor(text)
 }
 
+func changeTimezone(text string) string {
+	t, err := time.Parse("2006/01/02 15:04:05.000000", text)
+	if err != nil {
+		return "XX" + text + "XX"
+	}
+	return t.Local().Format("2006/01/02 15:04:05.000000")
+}
+
 func main() {
 	highlightWords := flag.String("highlight", "", "Comma-separated list of words to highlight")
 	highlightMode := flag.String("highlight-mode", "or", "Highlight mode: and, or")
+	currentTimezone := flag.Bool("intoCurrentTimezone", false, "Change time to current timezone (input is taken in UTC)")
 	flag.Parse()
 
 	var highlights []string
@@ -85,6 +95,12 @@ func main() {
 		file := matches[headerRegex.SubexpIndex("file")]
 		line = headerRegex.ReplaceAllString(line, "")
 
+		if *currentTimezone {
+			time = changeTimezone(time)
+		}
+
+		line = fmt.Sprintf("%s\t%s\t%s\t%s", logLevel, time, file, line)
+
 		var colorFunc = fmt.Sprint
 
 		switch logLevel {
@@ -98,11 +114,11 @@ func main() {
 
 		switch *highlightMode {
 		case "and":
-			fmt.Printf("%s\t%s\t%s\t%s\n", colorFunc(logLevel), colorFunc(time), colorFunc(file), applyAndHighlights(line, highlights, colorFunc))
+			fmt.Println(applyAndHighlights(line, highlights, colorFunc))
 		case "or":
-			fmt.Printf("%s\t%s\t%s\t%s\n", colorFunc(logLevel), colorFunc(time), colorFunc(file), applyOrHighlights(line, highlights, colorFunc))
+			fmt.Println(applyOrHighlights(line, highlights, colorFunc))
 		default:
-			fmt.Printf("%s\t%s\t%s\t%s\n", colorFunc(logLevel), colorFunc(time), colorFunc(file), applyOrHighlights(line, highlights, colorFunc))
+			fmt.Println(applyOrHighlights(line, highlights, colorFunc))
 		}
 	}
 
